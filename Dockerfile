@@ -1,0 +1,14 @@
+FROM ubuntu:18.04
+
+MAINTAINER hhsecond "sherin@tensorwerk.com"
+
+RUN apt-get update -y && apt-get install -y python3-pip python3-dev
+
+WORKDIR /app
+COPY requirements.txt /app/requirements.txt
+ENV LC_ALL=C.UTF-8 \
+    LANG=C.UTF-8
+RUN pip3 install -r requirements.txt
+COPY . /app
+
+ENTRYPOINT /bin/bash entrypoint.sh
