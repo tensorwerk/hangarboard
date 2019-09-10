@@ -1,6 +1,8 @@
 from flask.views import MethodView
 from flask import jsonify, request
 
+from .utils import get_date
+
 
 class RepositoryAPI(MethodView):
 
@@ -10,14 +12,14 @@ class RepositoryAPI(MethodView):
                     {
                         'name': 'Project 83',
                         'desc': 'Some random Desc',
-                        'last_commit_date': 9874653543,
+                        'last_commit_date': get_date(),
                         'commit_count': 215,
                         'branch_count': 2
                     },
                     {
                         'name': 'Visionary',
                         'desc': 'Some random Desc 2',
-                        'last_commit_date': 9874653545,
+                        'last_commit_date': get_date(),
                         'commit_count': 21,
                         'branch_count': 3
                     }], 'success': True, 'message': ''}
