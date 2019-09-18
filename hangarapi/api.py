@@ -2,7 +2,7 @@ from flask.views import MethodView
 from flask import jsonify, request
 
 from .config import SCREEN_DIR
-from .utils import get_valid_repo, create_repo
+from .utils import get_valid_repo, create_repo, get_arraysets, get_samples
 
 
 # TODO: Logging
@@ -18,14 +18,20 @@ class RepositoryAPI(MethodView):
             if repo:
                 # TODO: Create a hangar interface for all hangar interactions
                 cmt_details = repo.log(return_contents=True)
-                top = cmt_details['order'][0]
-                cmt_time = cmt_details['specs'][top]['commit_time']
+                # TODO: make sure pop returns the latest
+                try:
+                    top = cmt_details['order'].pop()
+                except IndexError:
+                    cmt_time = None
+                else:
+                    cmt_time = cmt_details['specs'][top]['commit_time']
                 repo_details = {
-                    'name': d.stem,
+                    'repo_name': d.stem,
                     'desc': d.stem,
                     'last_commit_date': cmt_time,
                     'commit_count': len(cmt_details['order']),
-                    'branch_count': len(repo.list_branches())
+                    'branch_count': len(repo.list_branches()),
+                    'hangar_version': repo.version
                 }
                 data.append(repo_details)
         if data:
@@ -40,7 +46,7 @@ class RepositoryAPI(MethodView):
             ret = {'success': False, 'message': message, 'data': []}
             return jsonify(ret), 400
         try:
-            repo_name = request.json['name']
+            repo_name = request.json['repo_name']
             desc = request.json['desc']
             username = request.json['username']
             email = request.json['email']
@@ -70,42 +76,37 @@ class ArraysetAPI(MethodView):
 
     def get(self):
         repo_name = request.args['repo_name']
-        ret = {'success': True, 'message': '', 'data': [
-            {
-                'name': f'{repo_name}_MNIST_image',
-                'variable': False,
-                'dtype': 'uint8',
-                'shape': [28, 28],
-                'sample_count': 60000
-            },
-            {
-                'name': f'{repo_name}_MNIST_target',
-                'variable': True,
-                'dtype': 'int64',
-                'shape': [100],
-                'sample_count': 60000
+        branch_name = request.args.get('branch_name', 'master')
+        path = SCREEN_DIR.joinpath(repo_name)
+        if not path.exists():
+            message = "Repository does not exist"
+            ret = {'success': False, 'message': message, 'data': []}
+            return jsonify(ret), 400
+        asets = get_arraysets(path, branch_name)
+        data = []
+        for aset in asets:
+            aset_details = {
+                "arrayset_name": aset.name,
+                "variable": aset.variable_shape,
+                # TODO: find a better conversion
+                "dtype": str(aset.dtype),
+                "shape": list(aset.shape),
+                "sample_count": len(aset)
             }
-        ]}
+            data.append(aset_details)
+        ret = {'success': True, 'message': '', 'data': data}
         return jsonify(ret), 200
 
 
 class SampleAPI(MethodView):
 
     def get(self):
-        ret = {'success': True, 'message': '', 'data': []}
-        limit = int(request.args.get('limit', 10))
+        limit = int(request.args.get('limit', 100))
         offset = int(request.args.get('offset', 0))
-        for i in range(offset, offset + limit):
-            each = {
-                'name': i,
-                'shape': [5, 4]
-            }
-            ret['data'].append(each)
-        return jsonify(ret), 200
-
-
-class VersionAPI(MethodView):
-
-    def get(self):
-        ret = {'success': True, 'message': '', 'data': []}
+        repo_name = request.args['repo_name']
+        arrayset_name = request.args['arrayset_name']
+        branch_name = request.args.get('branch_name', 'master')
+        path = SCREEN_DIR.joinpath(repo_name)
+        sampels = get_samples(path, branch_name, arrayset_name, limit, offset)
+        ret = {'success': True, 'message': '', 'data': sampels}
         return jsonify(ret), 200

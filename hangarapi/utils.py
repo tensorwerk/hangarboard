@@ -22,3 +22,30 @@ def create_repo(path, username, email, desc):
     except Exception as e:
         return False, str(e)
     return True, "Repository created successfully"
+
+
+def get_arraysets(path, branch_name):
+    repo = hangar.Repository(path)
+    if not repo.initialized:
+        return False, "Repository not initialized"
+    co = repo.checkout(branch=branch_name)
+    return list(co.arraysets.values())
+
+
+def get_samples(path, branch_name, arrayset_name, limit, offset):
+    repo = hangar.Repository(path)
+    if not repo.initialized:
+        return False, "Repository not initialized"
+    co = repo.checkout(branch=branch_name)
+    # TODO: if arrayset not found
+    aset = co.arraysets[arrayset_name]
+    data = []
+    for key in aset.keys():
+        if offset > 0:
+            offset -= 1
+            continue
+        data.append({"name": key, "shape": list(aset[key].shape)})
+        limit -= 1
+        if limit < 1:
+            break
+    return data
