@@ -38,7 +38,10 @@ def get_samples(path, branch_name, arrayset_name, limit, offset):
         return False, "Repository not initialized"
     co = repo.checkout(branch=branch_name)
     # TODO: if arrayset not found
-    aset = co.arraysets[arrayset_name]
+    try:
+        aset = co.arraysets[arrayset_name]
+    except KeyError:
+        return False, "Arrayset does not exist"
     data = []
     for key in aset.keys():
         if offset > 0:
@@ -48,4 +51,4 @@ def get_samples(path, branch_name, arrayset_name, limit, offset):
         limit -= 1
         if limit < 1:
             break
-    return data
+    return data, "Samples fetched successfully"

@@ -101,12 +101,19 @@ class ArraysetAPI(MethodView):
 class SampleAPI(MethodView):
 
     def get(self):
+        repo_name = request.args['repo_name']
         limit = int(request.args.get('limit', 100))
         offset = int(request.args.get('offset', 0))
-        repo_name = request.args['repo_name']
-        arrayset_name = request.args['arrayset_name']
         branch_name = request.args.get('branch_name', 'master')
+        arrayset_name = request.args['arrayset_name']
         path = SCREEN_DIR.joinpath(repo_name)
-        sampels = get_samples(path, branch_name, arrayset_name, limit, offset)
-        ret = {'success': True, 'message': '', 'data': sampels}
+        if not path.exists():
+            message = "Repository does not exist"
+            ret = {'success': False, 'message': message, 'data': []}
+            return jsonify(ret), 400
+        data, message = get_samples(path, branch_name, arrayset_name, limit, offset)
+        if data:
+            ret = {'success': True, 'message': message, 'data': data}
+        else:
+            ret = {'success': False, 'message': message, 'data': []}
         return jsonify(ret), 200
