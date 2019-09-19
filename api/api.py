@@ -128,11 +128,28 @@ class HistoryAPI(MethodView):
     """ History of commits """
 
     def get(self):
-        pass
+        repo_name = request.args['repo_name']
+        branch_name = request.args.get('branch_name', 'master')
+        path = SCREEN_DIR.joinpath(repo_name)
+        if not path.exists():
+            message = "Repository does not exist"
+            ret = {'success': False, 'message': message, 'data': []}
+            return jsonify(ret), 400
+        repo = get_valid_repo(path)
+        data = repo.log(return_contents=True)
+        ret = {'success': True, 'message': '', 'data': data}
+        return jsonify(ret), 200
 
 
 class DiffAPI(MethodView):
 
     def get(self):
-        pass
+        repo_name = request.args['repo_name']
+        src_branch = request.args.get('branch_name', 'master')
+
+        path = SCREEN_DIR.joinpath(repo_name)
+        if not path.exists():
+            message = "Repository does not exist"
+            ret = {'success': False, 'message': message, 'data': []}
+            return jsonify(ret), 400
 
