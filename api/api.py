@@ -41,6 +41,7 @@ class RepositoryAPI(MethodView):
         return jsonify(ret), 200
 
     def post(self):
+        """ Creating repository or Cloning """
         if not request.json:
             message = "provide required parameters"
             ret = {'success': False, 'message': message, 'data': []}
@@ -66,6 +67,10 @@ class RepositoryAPI(MethodView):
         status, message = create_repo(path, username, email, desc)
         ret = {'success': status, 'message': message, 'data': []}
         return jsonify(ret), 201
+
+    def put(self):
+        """repo pull and partial clone """
+        pass
 
     def delete(self):
         # TODO: allow deletion of repo from UI
@@ -117,3 +122,17 @@ class SampleAPI(MethodView):
         else:
             ret = {'success': False, 'message': message, 'data': []}
         return jsonify(ret), 200
+
+
+class HistoryAPI(MethodView):
+    """ History of commits """
+
+    def get(self):
+        pass
+
+
+class DiffAPI(MethodView):
+
+    def get(self):
+        pass
+
