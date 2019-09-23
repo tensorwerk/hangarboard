@@ -5,7 +5,7 @@ import numpy as np
 import hangar
 from tqdm import tqdm
 
-from hangarapi.config import SCREEN_DIR
+from api.config import SCREEN_DIR
 
 
 def make_arrayset(i, repo, branch_name="master"):

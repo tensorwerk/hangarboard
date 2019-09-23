@@ -1,8 +1,10 @@
+from collections import defaultdict
+
 from flask.views import MethodView
 from flask import jsonify, request
 
 from .config import SCREEN_DIR
-from .utils import get_valid_repo, create_repo, get_arraysets, get_samples
+from .utils import get_valid_repo, create_repo, get_arraysets_from_branch, get_samples, get_arrayset
 
 
 # TODO: Logging
@@ -87,7 +89,7 @@ class ArraysetAPI(MethodView):
             message = "Repository does not exist"
             ret = {'success': False, 'message': message, 'data': []}
             return jsonify(ret), 400
-        asets = get_arraysets(path, branch_name)
+        asets = get_arraysets_from_branch(path, branch_name)
         data = []
         for aset in asets:
             aset_details = {
@@ -129,7 +131,6 @@ class HistoryAPI(MethodView):
 
     def get(self):
         repo_name = request.args['repo_name']
-        branch_name = request.args.get('branch_name', 'master')
         path = SCREEN_DIR.joinpath(repo_name)
         if not path.exists():
             message = "Repository does not exist"
@@ -141,15 +142,63 @@ class HistoryAPI(MethodView):
         return jsonify(ret), 200
 
 
-class DiffAPI(MethodView):
+class SearchAPI(MethodView):
+    """ Search for Samples """
 
     def get(self):
         repo_name = request.args['repo_name']
-        src_branch = request.args.get('branch_name', 'master')
-
+        arrayset_name = request.args.get('arrayset_name')
+        branch_name = request.args.get('branch_name', 'master')
+        substr = request.args.get('substr')
         path = SCREEN_DIR.joinpath(repo_name)
         if not path.exists():
             message = "Repository does not exist"
             ret = {'success': False, 'message': message, 'data': []}
             return jsonify(ret), 400
+        if arrayset_name:
+            arraysets = [get_arrayset(path, branch_name, arrayset_name)]
+        else:
+            arraysets = get_arraysets_from_branch(path, branch_name)
 
+        # TODO: make this searchable array outside and should not execute it always
+        # TODO: handle if substr is None
+        # TODO: check the efficiency of the search
+        srch_dict = defaultdict(list)
+        for aset in arraysets:
+            for key in aset.keys():
+                srch_dict[key].append(aset.name)
+
+        search_results = defaultdict
+        for i in srch_dict.keys():
+            if i.startswith(substr):
+                for aset in srch_dict[i]:
+                    search_results[aset.name].append(i)
+
+        data = []
+        for key, value in search_results.items():
+            data.append({
+                'arrayset_name': key,
+                'sample_names': value
+            })
+
+        ret = {'success': True, 'message': '', 'data': data}
+        return jsonify(ret), 200
+
+
+class DiffAPI(MethodView):
+
+    def get(self):
+        repo_name = request.args['repo_name']
+        master_branch = request.args['master_branch_name']
+        dev_branch = request.args['dev_branch_name']
+        path = SCREEN_DIR.joinpath(repo_name)
+        if not path.exists():
+            message = "Repository does not exist"
+            ret = {'success': False, 'message': message, 'data': []}
+            return jsonify(ret), 400
+        repo = get_valid_repo(path)
+        co = repo.checkout(branch=master_branch)
+        diff = co.diff.branch(dev_branch)
+        # master.diff.branch('dummy2').diff.added.samples.keys()
+        ret = {'success': True, 'message': '', 'data': diff}
+        return jsonify(ret), 200

@@ -24,12 +24,20 @@ def create_repo(path, username, email, desc):
     return True, "Repository created successfully"
 
 
-def get_arraysets(path, branch_name):
+def get_arraysets_from_branch(path, branch_name):
     repo = hangar.Repository(path)
     if not repo.initialized:
         return False, "Repository not initialized"
     co = repo.checkout(branch=branch_name)
     return list(co.arraysets.values())
+
+
+def get_arrayset(path, branch_name, arrayset_name):
+    repo = hangar.Repository(path)
+    if not repo.initialized:
+        return False, "Repository not initialized"
+    co = repo.checkout(branch=branch_name)
+    return co.arraysets[arrayset_name]
 
 
 def get_samples(path, branch_name, arrayset_name, limit, offset):
