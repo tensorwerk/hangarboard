@@ -5,21 +5,22 @@ from flask import jsonify, request
 
 from .config import BOARD_DIR
 from .hinterface import Hinterface
+from .utils import get_logger
 
 
-# TODO: Logging
+logger = get_logger(__name__)
+
 
 class RepositoryAPI(MethodView):
 
     def get(self):
+        logger.info("Repository GET call")
         data = []
         for d in BOARD_DIR.iterdir():
-            if not d.is_dir():
-                # TODO: Remove this check later
-                continue
             try:
                 interface = Hinterface(d)
-            except RuntimeError as e:
+            except Exception:
+                logger.warning(f"Ignoring directory or file {d}")
                 # TODO: ignoring for now but do something here
                 continue
             repo_details = interface.repo_details
@@ -31,43 +32,14 @@ class RepositoryAPI(MethodView):
             ret = {'data': data, 'success': True, 'message': ''}
         else:
             ret = {'data': [], 'success': False, 'message': "Found no valid hangar repositories"}
+        logger.debug(f"Return Data: {ret}")
         return jsonify(ret), 200
-
-    def post(self):
-        """ Creating repository or Cloning """
-        if not request.json:
-            message = "provide required parameters"
-            ret = {'success': False, 'message': message, 'data': []}
-            return jsonify(ret), 400
-        try:
-            repo_name = request.json['repo_name']
-            desc = request.json['desc']
-            username = request.json['username']
-            email = request.json['email']
-        except KeyError:
-            message = "provide required parameters"
-            ret = {'success': False, 'message': message, 'data': []}
-            return jsonify(ret), 400
-        path = BOARD_DIR.joinpath(repo_name)
-        # TODO: Catch exceptions
-        Hinterface.create_repo(path, username, email, desc)
-        status = True
-        message = "Repository created successfully"
-        ret = {'success': status, 'message': message, 'data': []}
-        return jsonify(ret), 201
-
-    def put(self):
-        """repo pull and partial clone """
-        pass
-
-    def delete(self):
-        # TODO: allow deletion of repo from UI
-        raise NotImplementedError
 
 
 class ArraysetAPI(MethodView):
 
     def get(self):
+        logger.info("Arrayset GET call")
         repo_name = request.args['repo_name']
         branch_name = request.args.get('branch_name', 'master')
         path = BOARD_DIR.joinpath(repo_name)
@@ -84,13 +56,16 @@ class ArraysetAPI(MethodView):
                 "sample_count": len(aset)
             }
             data.append(aset_details)
+        logger.info(f"Found {len(data)} arraysets")
         ret = {'success': True, 'message': '', 'data': data}
+        logger.debug(f"Return Data: {ret}")
         return jsonify(ret), 200
 
 
 class SampleAPI(MethodView):
 
     def get(self):
+        logger.info("Samples GET call")
         repo_name = request.args['repo_name']
         limit = int(request.args.get('limit', 100))
         offset = int(request.args.get('offset', 0))
@@ -100,12 +75,14 @@ class SampleAPI(MethodView):
         interface = Hinterface(path, branch_name, arrayset_name)
         data = {}
         for arrayset_name, sample_names in interface.sample_names:
-            data[arrayset_name] = sample_names
+            logger.info(f"Arrayset {arrayset_name} has {len(sample_names)} samples")
+            data[arrayset_name] = sample_names[offset:offset + limit]
         message = "Fetched sample names successfully"
         if data:
             ret = {'success': True, 'message': message, 'data': data}
         else:
             ret = {'success': False, 'message': message, 'data': []}
+        logger.debug(f"Return Data: {ret}")
         return jsonify(ret), 200
 
 
