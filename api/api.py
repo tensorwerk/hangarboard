@@ -3,8 +3,8 @@ from collections import defaultdict
 from flask.views import MethodView
 from flask import jsonify, request
 
-from .config import SCREEN_DIR
-from .utils import get_valid_repo, create_repo, get_arraysets_from_branch, get_samples, get_arrayset
+from .config import BOARD_DIR
+from .hinterface import Hinterface
 
 
 # TODO: Logging
@@ -13,29 +13,20 @@ class RepositoryAPI(MethodView):
 
     def get(self):
         data = []
-        for d in SCREEN_DIR.iterdir():
+        for d in BOARD_DIR.iterdir():
             if not d.is_dir():
+                # TODO: Remove this check later
                 continue
-            repo = get_valid_repo(d)
-            if repo:
-                # TODO: Create a hangar interface for all hangar interactions
-                cmt_details = repo.log(return_contents=True)
-                # TODO: make sure pop returns the latest
-                try:
-                    top = cmt_details['order'].pop()
-                except IndexError:
-                    cmt_time = None
-                else:
-                    cmt_time = cmt_details['specs'][top]['commit_time']
-                repo_details = {
-                    'repo_name': d.stem,
-                    'desc': d.stem,
-                    'last_commit_date': cmt_time,
-                    'commit_count': len(cmt_details['order']),
-                    'branch_count': len(repo.list_branches()),
-                    'hangar_version': repo.version
-                }
-                data.append(repo_details)
+            try:
+                interface = Hinterface(d)
+            except RuntimeError as e:
+                # TODO: ignoring for now but do something here
+                continue
+            repo_details = interface.repo_details
+            repo_details['repo_name'] = d.stem
+            repo_details['desc'] = d.stem
+            data.append(repo_details)
+        # TODO: make a reply crafter
         if data:
             ret = {'data': data, 'success': True, 'message': ''}
         else:
@@ -57,16 +48,11 @@ class RepositoryAPI(MethodView):
             message = "provide required parameters"
             ret = {'success': False, 'message': message, 'data': []}
             return jsonify(ret), 400
-        path = SCREEN_DIR.joinpath(repo_name)
-        if not path.exists():
-            try:
-                path.mkdir()
-            except Exception as e:
-                print(e)
-                message = "Unknown error while creating repo directory"
-                ret = {'success': False, 'message': message, 'data': []}
-                return jsonify(ret), 500
-        status, message = create_repo(path, username, email, desc)
+        path = BOARD_DIR.joinpath(repo_name)
+        # TODO: Catch exceptions
+        Hinterface.create_repo(path, username, email, desc)
+        status = True
+        message = "Repository created successfully"
         ret = {'success': status, 'message': message, 'data': []}
         return jsonify(ret), 201
 
@@ -84,14 +70,11 @@ class ArraysetAPI(MethodView):
     def get(self):
         repo_name = request.args['repo_name']
         branch_name = request.args.get('branch_name', 'master')
-        path = SCREEN_DIR.joinpath(repo_name)
-        if not path.exists():
-            message = "Repository does not exist"
-            ret = {'success': False, 'message': message, 'data': []}
-            return jsonify(ret), 400
-        asets = get_arraysets_from_branch(path, branch_name)
+        path = BOARD_DIR.joinpath(repo_name)
+        interface = Hinterface(path, branch_name)
+
         data = []
-        for aset in asets:
+        for aset in interface.arraysets:
             aset_details = {
                 "arrayset_name": aset.name,
                 "variable": aset.variable_shape,
@@ -112,13 +95,13 @@ class SampleAPI(MethodView):
         limit = int(request.args.get('limit', 100))
         offset = int(request.args.get('offset', 0))
         branch_name = request.args.get('branch_name', 'master')
-        arrayset_name = request.args['arrayset_name']
-        path = SCREEN_DIR.joinpath(repo_name)
-        if not path.exists():
-            message = "Repository does not exist"
-            ret = {'success': False, 'message': message, 'data': []}
-            return jsonify(ret), 400
-        data, message = get_samples(path, branch_name, arrayset_name, limit, offset)
+        arrayset_name = request.args.get('arrayset_name')
+        path = BOARD_DIR.joinpath(repo_name)
+        interface = Hinterface(path, branch_name, arrayset_name)
+        data = {}
+        for arrayset_name, sample_names in interface.sample_names:
+            data[arrayset_name] = sample_names
+        message = "Fetched sample names successfully"
         if data:
             ret = {'success': True, 'message': message, 'data': data}
         else:
@@ -131,13 +114,9 @@ class HistoryAPI(MethodView):
 
     def get(self):
         repo_name = request.args['repo_name']
-        path = SCREEN_DIR.joinpath(repo_name)
-        if not path.exists():
-            message = "Repository does not exist"
-            ret = {'success': False, 'message': message, 'data': []}
-            return jsonify(ret), 400
-        repo = get_valid_repo(path)
-        data = repo.log(return_contents=True)
+        path = BOARD_DIR.joinpath(repo_name)
+        interface = Hinterface(path)
+        data = interface.repo.log(return_contents=True)
         ret = {'success': True, 'message': '', 'data': data}
         return jsonify(ret), 200
 
@@ -150,25 +129,17 @@ class SearchAPI(MethodView):
         arrayset_name = request.args.get('arrayset_name')
         branch_name = request.args.get('branch_name', 'master')
         substr = request.args.get('substr')
-        path = SCREEN_DIR.joinpath(repo_name)
-        if not path.exists():
-            message = "Repository does not exist"
-            ret = {'success': False, 'message': message, 'data': []}
-            return jsonify(ret), 400
-        if arrayset_name:
-            arraysets = [get_arrayset(path, branch_name, arrayset_name)]
-        else:
-            arraysets = get_arraysets_from_branch(path, branch_name)
-
+        path = BOARD_DIR.joinpath(repo_name)
+        interface = Hinterface(path, branch_name, arrayset_name)
         # TODO: make this searchable array outside and should not execute it always
         # TODO: handle if substr is None
         # TODO: check the efficiency of the search
         srch_dict = defaultdict(list)
-        for aset in arraysets:
+        for aset in interface.arraysets:
             for key in aset.keys():
                 srch_dict[key].append(aset.name)
 
-        search_results = defaultdict
+        search_results = defaultdict(list)
         for i in srch_dict.keys():
             if i.startswith(substr):
                 for aset in srch_dict[i]:
@@ -191,12 +162,12 @@ class DiffAPI(MethodView):
         repo_name = request.args['repo_name']
         master_branch = request.args['master_branch_name']
         dev_branch = request.args['dev_branch_name']
-        path = SCREEN_DIR.joinpath(repo_name)
+        path = BOARD_DIR.joinpath(repo_name)
         if not path.exists():
             message = "Repository does not exist"
             ret = {'success': False, 'message': message, 'data': []}
             return jsonify(ret), 400
-        repo = get_valid_repo(path)
+        repo = utils.get_valid_repo(path)
         co = repo.checkout(branch=master_branch)
         diff = co.diff.branch(dev_branch)
         # master.diff.branch('dummy2').diff.added.samples.keys()
