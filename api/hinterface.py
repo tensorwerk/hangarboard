@@ -41,7 +41,7 @@ class Hinterface(object):
         return {
             "commit_time": cmt_time,
             "total_commit_count": len(cmt_details["order"]),
-            "branch_count": len(self.repo.list_branches())
+            "branch_count": len(self.repo.list_branches()),
             "hangar_version": self.repo.version
         }
 
@@ -50,7 +50,8 @@ class Hinterface(object):
         if self.arrayset_name:
             yield self.rcheckout.arraysets[self.arrayset_name]
         else:
-            return self.rcheckout.arraysets.values()
+            for val in self.rcheckout.arraysets.values():
+                yield val
 
     @property
     def sample_names(self):

@@ -11,6 +11,8 @@ from .utils import get_logger
 logger = get_logger(__name__)
 
 
+# TODO: Handle exceptions
+
 class RepositoryAPI(MethodView):
 
     def get(self):
@@ -144,9 +146,9 @@ class DiffAPI(MethodView):
             message = "Repository does not exist"
             ret = {'success': False, 'message': message, 'data': []}
             return jsonify(ret), 400
-        repo = utils.get_valid_repo(path)
-        co = repo.checkout(branch=master_branch)
-        diff = co.diff.branch(dev_branch)
-        # master.diff.branch('dummy2').diff.added.samples.keys()
-        ret = {'success': True, 'message': '', 'data': diff}
-        return jsonify(ret), 200
+        # repo = utils.get_valid_repo(path)
+        # co = repo.checkout(branch=master_branch)
+        # diff = co.diff.branch(dev_branch)
+        # # master.diff.branch('dummy2').diff.added.samples.keys()
+        # ret = {'success': True, 'message': '', 'data': diff}
+        # return jsonify(ret), 200#

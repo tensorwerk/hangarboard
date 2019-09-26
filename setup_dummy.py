@@ -5,7 +5,7 @@ import numpy as np
 import hangar
 from tqdm import tqdm
 
-from api.config import SCREEN_DIR
+from api.config import BOARD_DIR
 
 
 def make_arrayset(i, repo, branch_name="master"):
@@ -37,7 +37,7 @@ nrepos = os.environ.get('NDUMMY')
 if nrepos:
     for i in range(int(nrepos)):
         print(f"Making repo #{i}")
-        path = SCREEN_DIR.joinpath(f'mydummyrepo_{i}')
+        path = BOARD_DIR.joinpath(f'mydummyrepo_{i}')
         path.mkdir()
         repo = hangar.Repository(path)
         repo.init(user_name=f'name_{i}', user_email=f'email_{i}@abc.com', remove_old=True)
