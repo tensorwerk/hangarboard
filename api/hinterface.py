@@ -39,7 +39,7 @@ class Hinterface(object):
         else:
             cmt_time = cmt_details['specs'][top]['commit_time']
         return {
-            "commit_time": cmt_time,
+            "last_commit_time": cmt_time,
             "total_commit_count": len(cmt_details["order"]),
             "branch_count": len(self.repo.list_branches()),
             "hangar_version": self.repo.version
