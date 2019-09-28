@@ -75,10 +75,13 @@ class SampleAPI(MethodView):
         arrayset_name = request.args.get('arrayset_name')
         path = BOARD_DIR.joinpath(repo_name)
         interface = Hinterface(path, branch_name, arrayset_name)
-        data = {}
+        data = []
         for arrayset_name, sample_names in interface.sample_names:
+            current = {}
             logger.info(f"Arrayset {arrayset_name} has {len(sample_names)} samples")
-            data[arrayset_name] = sample_names[offset:offset + limit]
+            current['arrayset_name'] = arrayset_name
+            current['sample_names'] = sample_names[offset:offset + limit]
+            data.append(current)
         message = "Fetched sample names successfully"
         if data:
             ret = {'success': True, 'message': message, 'data': data}
